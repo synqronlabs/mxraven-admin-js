@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnpm-store
+
+# Build and generated output
+dist
+docs/
+docs-html/
+coverage/
+*.tsbuildinfo
+*.tgz
+
+# Environment
+.env
+.env.*
+
+# Reference checkouts (upstream Java SDK and mail TS SDK)
+/mxraven-java/
+/mxraven-js/
+
+# Local credential driver
+driver.ts
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.log

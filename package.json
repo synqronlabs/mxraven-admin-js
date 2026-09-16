@@ -1,0 +1,83 @@
+{
+  "name": "@mxraven/admin",
+  "version": "2.0.2",
+  "description": "TypeScript SDK for the mxRaven control-plane admin API: domains, listeners, suppressions, webhooks, analytics, and more.",
+  "keywords": [
+    "admin",
+    "control-plane",
+    "email",
+    "mxraven",
+    "sdk",
+    "typescript"
+  ],
+  "homepage": "https://github.com/synqronlabs/mxraven-admin-js",
+  "bugs": {
+    "url": "https://github.com/synqronlabs/mxraven-admin-js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "SynqronLabs Private Limited",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/synqronlabs/mxraven-admin-js.git"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "driver": "pnpm run build && node driver.ts",
+    "docs": "typedoc",
+    "docs:html": "typedoc --options typedoc.pages.json",
+    "docs:watch": "typedoc --watch",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm run build && changeset publish",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "@types/node": "^26.5.1",
+    "eslint-plugin-tsdoc": "^0.5.2",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "tsdown": "~0.23.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "packageManager": "pnpm@11.26.0"
+}
