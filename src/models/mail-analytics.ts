@@ -930,3 +930,74 @@ export interface MailAnalyticsTaskSizeStatistics {
   /** The task-size buckets. */
   readonly buckets: readonly MailAnalyticsTaskSizeBucket[];
 }
+
+/**
+ * Identity of the listener a listener overview describes.
+ *
+ * @public
+ */
+export interface MailAnalyticsListenerIdentity {
+  /** Listener identifier. */
+  readonly listenerId: string;
+  /** Human-readable name. */
+  readonly displayName: string;
+  /** Listener state. */
+  readonly listenerState: MailAnalyticsListenerState;
+}
+
+/**
+ * One listener overview metric set.
+ *
+ * @public
+ */
+export interface MailAnalyticsListenerOverviewMetrics {
+  /** Accepted messages. */
+  readonly acceptedMessages: MailAnalyticsAcceptedMessages;
+  /** Egress tasks, including protocol-generated tasks. */
+  readonly egressTasks: number;
+  /** Delivery success rate. */
+  readonly deliverySuccessRate: MailAnalyticsRate;
+  /** SMTP responses. */
+  readonly smtpResponses: MailAnalyticsSMTPResponses;
+}
+
+/**
+ * A listener-overview time point.
+ *
+ * @public
+ */
+export interface MailAnalyticsListenerOverviewTimePoint {
+  /** Bucket start. */
+  readonly bucketStart: string;
+  /** Bucket end. */
+  readonly bucketEnd: string;
+  /** The metrics for the bucket. */
+  readonly metrics: MailAnalyticsListenerOverviewMetrics;
+}
+
+/**
+ * The listener overview report.
+ *
+ * The interval is start-inclusive and end-exclusive; the server selects hourly
+ * buckets for intervals up to 72 hours and daily buckets for longer intervals.
+ *
+ * @public
+ */
+export interface MailAnalyticsListenerOverview {
+  /** Interval start. */
+  readonly startAt: string;
+  /** Interval end. */
+  readonly endAt: string;
+  /** Bucket granularity. */
+  readonly bucketGranularity: MailAnalyticsBucketGranularity;
+  /** When the query ran. */
+  readonly queriedAt: string;
+  /** Eventually-consistent notice. */
+  readonly eventualConsistencyNotice: string;
+  /** The reported listener. */
+  readonly listener: MailAnalyticsListenerIdentity;
+  /** Summary metrics for the interval. */
+  readonly summary: MailAnalyticsListenerOverviewMetrics;
+  /** Zero-filled buckets ordered oldest first. */
+  readonly timeSeries: readonly MailAnalyticsListenerOverviewTimePoint[];
+}

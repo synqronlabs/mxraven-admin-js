@@ -10,6 +10,7 @@ import type {
   MailAnalyticsDimension,
   MailAnalyticsDomainLifecycle,
   MailAnalyticsLifecycle,
+  MailAnalyticsListenerOverview,
   MailAnalyticsMetric,
   MailAnalyticsOverview,
   MailAnalyticsSeries,
@@ -151,6 +152,16 @@ export interface DomainLifecycleOptions extends LifecycleOptions {
 }
 
 /**
+ * Options for the listener-overview operation.
+ *
+ * @public
+ */
+export interface ListenerOverviewOptions extends IntervalOptions {
+  /** The tenant listener to report. */
+  readonly listenerId: string;
+}
+
+/**
  * Tenant mail-analytics operations.
  *
  * All intervals are start-inclusive and end-exclusive, must use UTC, and must
@@ -247,6 +258,27 @@ export class MailAnalyticsClient {
       {
         start_at: options.startAt,
         end_at: options.endAt,
+      },
+      options,
+    );
+  }
+
+  /**
+   * Fetches one listener's mail-analytics overview.
+   *
+   * @param options - The interval, listener id, and cancellation signal.
+   * @returns The listener overview.
+   *
+   * @public
+   */
+  listenerOverview(options: ListenerOverviewOptions): Promise<MailAnalyticsListenerOverview> {
+    validateInterval(options.startAt, options.endAt);
+    return this.#get(
+      "listener-overview",
+      {
+        start_at: options.startAt,
+        end_at: options.endAt,
+        listener_id: options.listenerId,
       },
       options,
     );

@@ -187,6 +187,35 @@ describe("ListenersClient", () => {
       '{"grants":[{"domain_id":"d1","subdomain_scope":"include_subdomains"}]}',
     );
   });
+
+  it("reads and updates listener notification settings", async () => {
+    const notificationsJson =
+      '{"enabled":true,"subject":"mxraven.client.events","consumer":"listener-l1-events"}';
+    const stub = createFetchStub((request) => {
+      if (request.url.includes("/notifications")) {
+        return {
+          status: 200,
+          body:
+            request.method === "PUT"
+              ? '{"enabled":false,"subject":"mxraven.client.events","consumer":"listener-l1-events"}'
+              : notificationsJson,
+        };
+      }
+      return { status: 200, body: listenerJson };
+    });
+    const listener = await makeClient(stub.fetch).workspace("acme").listeners().get("l1");
+
+    const setting = await listener.notificationSetting();
+    expect(pathOf(stub.calls[1])).toBe("/v2/tenants/acme/listeners/l1/notifications");
+    expect(setting.enabled).toBe(true);
+    expect(setting.subject).toBe("mxraven.client.events");
+    expect(setting.consumer).toBe("listener-l1-events");
+
+    const updated = await listener.updateNotifications(false);
+    expect(stub.calls[2]?.method).toBe("PUT");
+    expect(stub.calls[2]?.body).toBe('{"enabled":false}');
+    expect(updated.enabled).toBe(false);
+  });
 });
 
 describe("Routing rules", () => {

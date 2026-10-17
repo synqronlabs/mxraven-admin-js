@@ -112,4 +112,31 @@ describe("MailAnalyticsClient interval validation", () => {
     expect(params.get("dimension")).toBe("recipient_domain");
     expect(params.get("limit")).toBe("5");
   });
+
+  it("sends the listener-overview operation with the listener id", async () => {
+    const metricsJson =
+      '{"accepted_messages":{"total":1,"submission":1,"mta":0},"egress_tasks":2,' +
+      '"delivery_success_rate":{"numerator":1,"denominator":1,"value":1},' +
+      '"smtp_responses":{"successful":1,"temporary_failure":0,"permanent_failure":0}}';
+    const listenerOverviewJson =
+      '{"start_at":"2026-09-01T01:00:00Z","end_at":"2026-09-02T01:00:00Z",' +
+      '"bucket_granularity":"hour","queried_at":"2026-09-02T01:00:01Z",' +
+      '"eventual_consistency_notice":"",' +
+      '"listener":{"listener_id":"l1","display_name":"Outbound","listener_state":"current"},' +
+      `"summary":${metricsJson},` +
+      '"time_series":[{"bucket_start":"2026-09-01T01:00:00Z",' +
+      `"bucket_end":"2026-09-01T02:00:00Z","metrics":${metricsJson}}]}`;
+    const stub = createFetchStub(() => ({ status: 200, body: listenerOverviewJson }));
+    const analytics = makeClient(stub.fetch).workspace("acme").mailAnalytics();
+
+    const overview = await analytics.listenerOverview({ ...validInterval, listenerId: "l1" });
+
+    expect(pathOf(stub.calls[0])).toBe("/v2/tenants/acme/mail-analytics/listener-overview");
+    const params = queryOf(stub.calls[0]);
+    expect(params.get("listener_id")).toBe("l1");
+    expect(params.get("start_at")).toBe(validInterval.startAt);
+    expect(overview.listener.listenerState).toBe("current");
+    expect(overview.summary.egressTasks).toBe(2);
+    expect(overview.timeSeries[0]?.bucketEnd).toBe("2026-09-01T02:00:00Z");
+  });
 });

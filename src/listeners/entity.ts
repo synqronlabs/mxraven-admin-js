@@ -6,6 +6,7 @@ import type { RequestOptions } from "../client.js";
 import { Entity } from "../entity.js";
 import type {
   ListenerData,
+  ListenerNotificationSetting,
   ListenerType,
   StreamType,
   TerminalActionPayload,
@@ -138,6 +139,41 @@ export class Listener extends Entity<ListenerData> {
       await this.client.put(`${this.path}/rspamd-scanning`, { enabled }, options)
     ).as<ListenerData>();
     return new Listener({ client: this.client, path: this.path, data, deleted: this.isDeleted });
+  }
+
+  /**
+   * Reads the listener's client notification setting.
+   *
+   * @param options - Optional cancellation signal.
+   * @returns The notification setting.
+   *
+   * @public
+   */
+  async notificationSetting(options?: RequestOptions): Promise<ListenerNotificationSetting> {
+    return (
+      await this.client.get(`${this.path}/notifications`, undefined, options)
+    ).as<ListenerNotificationSetting>();
+  }
+
+  /**
+   * Enables or disables client notification publishing.
+   *
+   * Enabling creates the listener's durable consumer and starts event
+   * publishing; disabling stops publishing and retains the consumer.
+   *
+   * @param enabled - Whether the listener should publish client notifications.
+   * @param options - Optional cancellation signal.
+   * @returns The updated notification setting.
+   *
+   * @public
+   */
+  async updateNotifications(
+    enabled: boolean,
+    options?: RequestOptions,
+  ): Promise<ListenerNotificationSetting> {
+    return (
+      await this.client.put(`${this.path}/notifications`, { enabled }, options)
+    ).as<ListenerNotificationSetting>();
   }
 
   /**

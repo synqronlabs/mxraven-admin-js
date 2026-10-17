@@ -422,6 +422,7 @@ const listener = await listeners.create({
 
 await listener.rename("Outbound primary");
 await listener.updateRspamdScanning(true);
+await listener.updateNotifications(true);
 
 for await (const mta of await listeners.listMtaListeners()) {
   console.log(mta.displayName);
@@ -453,6 +454,9 @@ for await (const key of await listener.apiKeys().list()) {
   await key.delete();
 }
 ```
+
+A submission listener's key authenticates SMTP submission; an MTA listener's
+key authenticates the client notification channel.
 
 ### Sending-domain policy - `listener.sendingDomainPolicy()`
 
@@ -672,6 +676,12 @@ const series = await ws.mailAnalytics().series({
   dimension: mailAnalyticsDimension.stream,
   limit: 10,
 });
+
+const listenerOverview = await ws.mailAnalytics().listenerOverview({
+  startAt: "2026-09-01T00:00:00Z",
+  endAt: "2026-09-02T00:00:00Z",
+  listenerId: listener.id,
+});
 ```
 
 ### Auth - `admin.auth()`
@@ -753,7 +763,8 @@ groups:
   `TenantResourceSearchResult`, `TenantSearchResourceType`,
   `TenantDedicatedIPPool`.
 - **Mail analytics:** the `MailAnalytics*` family (metrics, dimensions, buckets,
-  breakdowns, series, lifecycle, latency, and task-size statistics).
+  breakdowns, series, lifecycle, listener overviews, latency, and task-size
+  statistics).
 - **Shared:** `Problem`, `ProblemError`, `Page`, `Paged`, `Response`,
   `ListOptions`, `MIN_SEARCH_LENGTH`, and the error classes.
 

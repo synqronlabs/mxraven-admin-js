@@ -300,3 +300,30 @@ export interface UpdateListenerRspamdScanningRequest {
   /** Whether rspamd scanning is enabled. */
   readonly enabled: boolean;
 }
+
+/**
+ * The client notification setting of a listener.
+ *
+ * When enabled, the listener publishes client notification events on
+ * `subject`; clients bind the durable pull `consumer` to read them.
+ *
+ * @public
+ */
+export interface ListenerNotificationSetting {
+  /** Whether the listener publishes client notification events. */
+  readonly enabled: boolean;
+  /** Subject prefix client notifications are published on. */
+  readonly subject: string;
+  /** Durable pull consumer clients bind to in order to read those events. */
+  readonly consumer: string;
+}
+
+/**
+ * Request body for `PUT /v2/tenants/{slug}/listeners/{id}/notifications`.
+ *
+ * @public
+ */
+export interface UpdateListenerNotificationsRequest {
+  /** Whether the listener publishes client notification events. */
+  readonly enabled: boolean;
+}

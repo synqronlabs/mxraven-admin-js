@@ -55,11 +55,13 @@ export {
 export type {
   CreateListenerRequest,
   ListenerData,
+  ListenerNotificationSetting,
   ListenerType,
   StreamType,
   TerminalActionPayload,
   TerminalActionType,
   UpdateListenerDefaultTerminalActionRequest,
+  UpdateListenerNotificationsRequest,
   UpdateListenerRequest,
   UpdateListenerRspamdScanningRequest,
 } from "./models/listeners.js";
@@ -140,6 +142,10 @@ export type {
   MailAnalyticsLifecycleTimePoint,
   MailAnalyticsListenerBreakdown,
   MailAnalyticsListenerBreakdownItem,
+  MailAnalyticsListenerIdentity,
+  MailAnalyticsListenerOverview,
+  MailAnalyticsListenerOverviewMetrics,
+  MailAnalyticsListenerOverviewTimePoint,
   MailAnalyticsListenerState,
   MailAnalyticsMessageContent,
   MailAnalyticsMetric,
@@ -168,6 +174,7 @@ export type {
   DomainLifecycleOptions,
   IntervalOptions,
   LifecycleOptions,
+  ListenerOverviewOptions,
   MailAnalyticsClientOptions,
 } from "./mail-analytics/client.js";
 export {
