@@ -31,7 +31,7 @@ type FetchResponse = Awaited<ReturnType<FetchLike>>;
  * @public
  */
 export interface AdminClientOptions {
-  /** The control-plane base URL. Defaults to `https://api.mxraven.email`. */
+  /** The control-plane base URL. Defaults to `https://api.mxraven.com`. */
   readonly baseUrl?: string;
   /** A ZITADEL-issued bearer access token. Omit for public operations only. */
   readonly token?: string;
@@ -198,7 +198,7 @@ function parseJson(text: string): unknown {
  */
 export class AdminClient {
   /** The default mxRaven control-plane base URL. */
-  static readonly defaultBaseUrl = "https://api.mxraven.email";
+  static readonly defaultBaseUrl = "https://api.mxraven.com";
 
   /** The default control-plane API version prefix. */
   static readonly defaultApiVersion = "v2";

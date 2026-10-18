@@ -94,7 +94,7 @@ operations such as `admin.auth().loginContext(...)` work with a blank token.
 import { AdminClient, defaultRateLimitConfig } from "@mxraven/admin";
 
 const admin = new AdminClient({
-  baseUrl: "https://api.mxraven.email", // default
+  baseUrl: "https://api.mxraven.com", // default
   token, // omit for public operations only
   apiVersion: "v2", // default
   timeoutMs: 60_000, // default
@@ -103,14 +103,14 @@ const admin = new AdminClient({
 });
 ```
 
-| Option       | Type              | Default                     | Notes                                   |
-| ------------ | ----------------- | --------------------------- | --------------------------------------- |
-| `baseUrl`    | `string`          | `https://api.mxraven.email` | Trailing slashes are stripped.          |
-| `token`      | `string`          | `""`                        | Bearer token; blank for public calls.   |
-| `apiVersion` | `string`          | `v2`                        | Prefixed to every client-relative path. |
-| `rateLimit`  | `RateLimitConfig` | `defaultRateLimitConfig`    | Retry behaviour for `429`.              |
-| `fetch`      | `FetchLike`       | `globalThis.fetch`          | Transport override.                     |
-| `timeoutMs`  | `number`          | `60000`                     | Per-request timeout.                    |
+| Option       | Type              | Default                   | Notes                                   |
+| ------------ | ----------------- | ------------------------- | --------------------------------------- |
+| `baseUrl`    | `string`          | `https://api.mxraven.com` | Trailing slashes are stripped.          |
+| `token`      | `string`          | `""`                      | Bearer token; blank for public calls.   |
+| `apiVersion` | `string`          | `v2`                      | Prefixed to every client-relative path. |
+| `rateLimit`  | `RateLimitConfig` | `defaultRateLimitConfig`  | Retry behaviour for `429`.              |
+| `fetch`      | `FetchLike`       | `globalThis.fetch`        | Transport override.                     |
+| `timeoutMs`  | `number`          | `60000`                   | Per-request timeout.                    |
 
 Read-only accessors: `admin.baseUrl`, `admin.apiVersion`, `admin.rateLimit`,
 `admin.token`.

@@ -116,7 +116,7 @@ describe("AdminClient", () => {
 
   it("defaults to the production base URL and v2", () => {
     const client = new AdminClient({ token: "token" });
-    expect(client.baseUrl).toBe("https://api.mxraven.email");
+    expect(client.baseUrl).toBe("https://api.mxraven.com");
     expect(client.baseUrl).toBe(AdminClient.defaultBaseUrl);
     expect(client.apiVersion).toBe("v2");
     expect(client.apiVersion).toBe(AdminClient.defaultApiVersion);
