@@ -41,7 +41,7 @@ export interface AutoReplyTemplateHeader {
   /** Header name. */
   readonly name: string;
   /** Header value. */
-  readonly value?: string | null;
+  readonly value: string;
 }
 
 /**
@@ -106,6 +106,25 @@ export interface AutoReplyTemplateData {
   readonly content: AutoReplyTemplateContentSummary;
   /** Sender readiness. */
   readonly senderReadiness: AutoReplySenderReadiness;
+}
+
+/**
+ * Stored template content, exactly as the listener renders it.
+ *
+ * Configuration rather than a credential: a principal with
+ * `auto_reply_templates.read` may read it.
+ *
+ * @public
+ */
+export interface AutoReplyTemplateContent {
+  /** The stored subject. */
+  readonly subject: string;
+  /** The stored plain-text body, or `null` when absent. */
+  readonly textBody: string | null;
+  /** The stored HTML body after the authoring-time content policy, or `null`. */
+  readonly htmlBody: string | null;
+  /** The stored custom headers. */
+  readonly headers: readonly AutoReplyTemplateHeader[];
 }
 
 /**

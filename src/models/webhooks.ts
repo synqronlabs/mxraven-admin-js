@@ -1,27 +1,15 @@
 /**
- * Webhook endpoint and delivery models.
+ * Webhook endpoint models.
  *
  * @packageDocumentation
  */
 
-/**
- * The kind of webhook delivery.
- *
- * @public
- */
-export const webhookDeliveryKind = {
-  /** A message delivery webhook. */
-  deliverWebhook: "deliver_webhook",
-  /** A notification webhook. */
-  notifyWebhook: "notify_webhook",
-} as const;
-
-/**
- * The kind of webhook delivery.
- *
- * @public
- */
-export type WebhookDeliveryKind = (typeof webhookDeliveryKind)[keyof typeof webhookDeliveryKind];
+import {
+  countCodePoints,
+  requireAtMost,
+  requireHeaderName,
+  requireText,
+} from "../internal/validate.js";
 
 /**
  * Wire representation of a webhook endpoint.
@@ -43,6 +31,13 @@ export interface WebhookEndpointData {
   readonly signingKid: string;
   /** Whether a signing secret is stored. */
   readonly hasSigningSecret: boolean;
+  /**
+   * The header that carries the endpoint's stored credential on routing-script
+   * `mx.http` calls, or `undefined` when the endpoint has none.
+   *
+   * The credential value is write-only and never returned.
+   */
+  readonly credentialHeader?: string;
   /** Whether the endpoint is active. */
   readonly isActive: boolean;
   /** Creation timestamp. */
@@ -65,36 +60,6 @@ export interface IssuedWebhookEndpoint extends WebhookEndpointData {
 }
 
 /**
- * Wire representation of a webhook delivery attempt.
- *
- * Request content, response bodies, and raw upstream errors are not exposed.
- *
- * @public
- */
-export interface WebhookDelivery {
-  /** Delivery identifier. */
-  readonly id: string;
-  /** The originating task identifier. */
-  readonly taskId: string;
-  /** The listener that produced the task. */
-  readonly listenerId: string;
-  /** The kind of delivery. */
-  readonly deliveryKind: WebhookDeliveryKind;
-  /** The delivery outcome. */
-  readonly outcome: string;
-  /** The one-based attempt number. */
-  readonly attempt: number;
-  /** The upstream HTTP status code, when available. */
-  readonly statusCode?: number | null;
-  /** The target URL host. */
-  readonly targetUrlHost: string;
-  /** The signing key identifier. */
-  readonly signingKid: string;
-  /** When the delivery occurred. */
-  readonly occurredAt: string;
-}
-
-/**
  * Request body for `POST /v2/tenants/{slug}/webhook-endpoints`.
  *
  * @public
@@ -109,6 +74,23 @@ export interface CreateWebhookEndpointRequest {
 }
 
 /**
+ * Request body for `PUT /v2/tenants/{slug}/webhook-endpoints/{id}/credential`.
+ *
+ * The value is stored in Vault and never returned.
+ *
+ * @public
+ */
+export interface SetWebhookEndpointCredentialRequest {
+  /**
+   * `Authorization` (the default when omitted), or an `X-` header such as
+   * `X-API-Key`. The `X-MxR-` and `X-MxRaven-` prefixes are refused.
+   */
+  readonly header?: string;
+  /** The exact header value, such as `Bearer sk-123`. No line breaks. */
+  readonly value: string;
+}
+
+/**
  * Request body for `PUT /v2/tenants/{slug}/webhook-endpoints/{id}`.
  *
  * @public
@@ -118,4 +100,37 @@ export interface UpdateWebhookEndpointRequest {
   readonly displayName: string;
   /** The absolute HTTPS target URL. */
   readonly targetUrl: string;
+}
+
+/**
+ * Validates a webhook endpoint credential request.
+ *
+ * @param request - The header and credential value.
+ * @returns A normalized copy of the request.
+ * @throws `Error` When the header or value fails local validation.
+ *
+ * @internal
+ */
+export function validateCredentialRequest(
+  request: SetWebhookEndpointCredentialRequest,
+): SetWebhookEndpointCredentialRequest {
+  const value = requireAtMost(requireText(request.value, "value"), 4096, "value");
+  if (value.includes("\r") || value.includes("\n")) {
+    throw new Error("admin: value must not contain line breaks");
+  }
+  if (request.header === undefined) {
+    return { header: "Authorization", value };
+  }
+  const header = requireAtMost(requireHeaderName(request.header, "header"), 100, "header");
+  if (countCodePoints(header) === 0) {
+    throw new Error("admin: header is required");
+  }
+  const lower = header.toLowerCase();
+  if (lower !== "authorization" && !lower.startsWith("x-")) {
+    throw new Error("admin: header must be Authorization or an X- header");
+  }
+  if (lower.startsWith("x-mxr-") || lower.startsWith("x-mxraven-")) {
+    throw new Error("admin: header must not use mxRaven's reserved prefixes");
+  }
+  return { header, value };
 }

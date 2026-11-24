@@ -14,6 +14,7 @@ import {
 } from "../internal/validate.js";
 import type { ListOptions } from "../list.js";
 import type {
+  AutoReplyTemplateContent,
   AutoReplyTemplateData,
   AutoReplyTemplateHeader,
   CreateAutoReplyTemplateRequest,
@@ -41,7 +42,7 @@ function validateHeaders(
   }
   headers.forEach((header, index) => {
     requireHeaderName(header.name, `headers[${index}].name`);
-    optionalAtMost(header.value, MAX_BODY, `headers[${index}].value`);
+    requireAtMost(header.value, MAX_BODY, `headers[${index}].value`);
   });
   return headers;
 }
@@ -145,6 +146,27 @@ export class AutoReplyTemplatesClient {
       await this.#client.get(`${base}/ref/${encodeURIComponent(templateRef)}`, undefined, options)
     ).as<AutoReplyTemplateData>();
     return new AutoReplyTemplate({ client: this.#client, path: `${base}/${data.id}`, data });
+  }
+
+  /**
+   * Reads a template's stored content exactly as the listener renders it.
+   *
+   * Template list and get results only carry a masked summary; this endpoint
+   * returns the stored subject, bodies, and headers.
+   *
+   * @param templateId - The template identifier.
+   * @param options - Optional cancellation signal.
+   * @returns The stored content.
+   * @throws `NotFoundException` When the template is not visible.
+   *
+   * @public
+   */
+  async getContent(
+    templateId: string,
+    options?: RequestOptions,
+  ): Promise<AutoReplyTemplateContent> {
+    const path = `${this.#path()}/${encodeURIComponent(templateId)}/content`;
+    return (await this.#client.get(path, undefined, options)).as<AutoReplyTemplateContent>();
   }
 
   /**

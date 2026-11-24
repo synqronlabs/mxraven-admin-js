@@ -8,10 +8,11 @@
 
 A TypeScript SDK for the mxRaven **control-plane admin API**. It manages a
 workspace end to end over the same `/v2` REST surface the customer dashboard
-uses: domains, listeners, routing rules, API keys, suppressions, recipient sets,
+uses: domains, listeners, routing scripts, API keys, suppressions, recipient sets,
 auto-reply templates, forwarding destinations, inbound routes, relays, storage
-integrations, webhook endpoints, identity providers, quotas, rate limits,
-governance, mail analytics, and the public auth login context.
+integrations, webhook endpoints, identity providers, connected applications,
+quotas, rate limits, abuse control, governance, mail analytics, and the public auth login
+context.
 
 Full method and model documentation lives in the
 [**API reference**](https://synqronlabs.github.io/mxraven-admin-js/).
@@ -158,25 +159,28 @@ const paged = await ws.domains().list({ signal: controller.signal });
 `admin.workspace(slug)` binds a tenant and exposes every tenant-scoped
 collection.
 
-| Owner         | Accessor                    | Manages                                        |
-| ------------- | --------------------------- | ---------------------------------------------- |
-| `Workspace`   | `tenant()`                  | Workspace identity and provisioning state      |
-| `Workspace`   | `domains()`                 | Sending-domain onboarding and DNS verification |
-| `Workspace`   | `listeners()`               | Submission and MTA listeners                   |
-| `Workspace`   | `suppressions()`            | Tenant recipient suppressions                  |
-| `Workspace`   | `recipientSets()`           | Reusable recipient collections and members     |
-| `Workspace`   | `autoReplyTemplates()`      | Auto-reply templates                           |
-| `Workspace`   | `smtpForwardDestinations()` | Verified SMTP forwarding destinations          |
-| `Workspace`   | `inboundRoutes()`           | Recipient-domain routing to MTA listeners      |
-| `Workspace`   | `smtpRelays()`              | Tenant SMTP relay integrations                 |
-| `Workspace`   | `storageIntegrations()`     | Tenant object-storage integrations             |
-| `Workspace`   | `webhookEndpoints()`        | Webhook endpoints, secrets, and deliveries     |
-| `Workspace`   | `identityProviders()`       | Tenant external identity providers             |
-| `Workspace`   | `quotas()`                  | Effective tenant quotas and usage              |
-| `Workspace`   | `mtaRateLimits()`           | Tenant MTA rate-limit override                 |
-| `Workspace`   | `governance()`              | Audit log, dedicated IP pools, resource search |
-| `Workspace`   | `mailAnalytics()`           | Mail activity and delivery aggregates          |
-| `AdminClient` | `auth()`                    | Public tenant login context                    |
+| Owner         | Accessor                     | Manages                                        |
+| ------------- | ---------------------------- | ---------------------------------------------- |
+| `Workspace`   | `tenant()`                   | Workspace identity and provisioning state      |
+| `Workspace`   | `domains()`                  | Sending-domain onboarding and DNS verification |
+| `Workspace`   | `listeners()`                | Submission and MTA listeners                   |
+| `Workspace`   | `routingScripts(listenerId)` | Lua routing scripts and revision history       |
+| `Workspace`   | `connectedApps()`            | Connected-application installs and consent     |
+| `Workspace`   | `suppressions()`             | Tenant recipient suppressions                  |
+| `Workspace`   | `recipientSets()`            | Reusable recipient collections and members     |
+| `Workspace`   | `autoReplyTemplates()`       | Auto-reply templates                           |
+| `Workspace`   | `smtpForwardDestinations()`  | Verified SMTP forwarding destinations          |
+| `Workspace`   | `inboundRoutes()`            | Recipient-domain routing to MTA listeners      |
+| `Workspace`   | `smtpRelays()`               | Tenant SMTP relay integrations                 |
+| `Workspace`   | `storageIntegrations()`      | Tenant object-storage integrations             |
+| `Workspace`   | `webhookEndpoints()`         | Webhook endpoints and secret rotation          |
+| `Workspace`   | `identityProviders()`        | Tenant external identity providers             |
+| `Workspace`   | `quotas()`                   | Effective tenant quotas and usage              |
+| `Workspace`   | `mtaRateLimits()`            | Tenant MTA rate-limit override                 |
+| `Workspace`   | `abuseControl()`             | Reputation, outbound pause, abuse findings     |
+| `Workspace`   | `governance()`               | Audit log, routing outcomes, IP pools, search  |
+| `Workspace`   | `mailAnalytics()`            | Mail activity and delivery aggregates          |
+| `AdminClient` | `auth()`                     | Public tenant login context                    |
 
 A workspace is a lightweight binding; `admin.workspace("a")` and
 `admin.workspace("b")` let you work across tenants from one client.
@@ -185,6 +189,17 @@ A workspace is a lightweight binding; `admin.workspace("a")` and
 const ws = admin.workspace("my-workspace");
 ws.slug; // "my-workspace"
 ```
+
+### Scope
+
+The SDK covers the tenant-bound `/v2/tenants/{slug}/...` administration surface,
+the public auth login context, and the instance-wide grantable connected-app
+scope listing (`/v2/connected-apps/scopes`). Platform-operator routes
+(`/v2/platform/...`) and account self-service routes (`/v2/account/...`) are
+intentionally out of scope, including billing catalog/checkout, plan changes,
+signup, account closure, and platform abuse administration. Use those endpoints
+through the low-level request API when a caller already holds the corresponding
+platform-operator or account token.
 
 ---
 
@@ -216,9 +231,9 @@ Every entity exposes three things:
 - **operations** - `reload()`, mutations (`replace`, `update`, `setActive`,
   `rotateSecret`, `sendVerification`, …), and `delete()`.
 - **children** - strictly-owned collections and singletons:
-  `listener.routingRules()`, `listener.apiKeys()`,
+  `listener.routingScript()`, `listener.apiKeys()`,
   `listener.sendingDomainPolicy()`, `listener.mtaRateLimit()`,
-  `set.members()`, `endpoint.deliveries()`, `domain.listenerGrants()`.
+  `set.members()`, `domain.listenerGrants()`.
 
 `delete()` is idempotent per instance; `isDeleted` is local bookkeeping for
 deletes performed through that instance.
@@ -332,44 +347,71 @@ Every exception carries `status`, `code`, `title`, `detail`, `traceId`,
 - Contract enums are `as const` objects with a derived union
   (`domainStatus.verified`, `listenerType.mta`, …).
 
-### Terminal action payloads
+### Routing scripts
 
-`defaultTerminalActionPayload` and its update equivalents are built with typed
-factories on `terminalActionPayload`, or passed raw via `of`.
+Each listener has at most one published Lua 5.4 routing script. A listener
+without one uses its listener-type default: submission listeners deliver through
+the shared pool, and MTA listeners drop after acceptance. Reach the script from
+`listener.routingScript()` or `ws.routingScripts(listenerId)`.
 
-| Action              | Factory                                                 |
-| ------------------- | ------------------------------------------------------- |
-| `DELIVER`           | `terminalActionPayload.deliver()` / `.empty()`          |
-| `DELIVER_DEDICATED` | `terminalActionPayload.deliverDedicated(poolId)`        |
-| `SMARTHOST_RELAY`   | `terminalActionPayload.smartHostRelay(relayRef)`        |
-| `RELAY`             | `terminalActionPayload.relay(relayRef)`                 |
-| `AUTO_REPLY`        | `terminalActionPayload.autoReply(templateRef)`          |
-| `DROP`              | `terminalActionPayload.drop()` / `.drop(auditReason)`   |
-| `REJECT`            | `terminalActionPayload.reject(smtp, enhanced, message)` |
+```ts
+const script = listener.routingScript();
 
-### Routing rule actions
+// Save a draft. Validation runs immediately; errors do not discard the draft.
+const draft = await script.createRevision(`
+function handle(mail, mx)
+  if mail.from.domain == "billing.example" then
+    return mx.forward:smtp("billing-dest")
+  end
+  return mx.deliver:shared()
+end
+`);
 
-`CreateRoutingRuleRequest` / `ReplaceRoutingRuleRequest` take a
-`RoutingRuleAction` built with `routingRuleAction.*`.
+if (!draft.publishable) {
+  console.error(draft.diagnostics);
+} else {
+  // Dry-run against a synthesized fixture before going live.
+  const result = await script.simulate(draft.revision, {
+    fixture: { mailFrom: "billing@billing.example", rcptTo: ["ops@example.com"] },
+  });
+  console.log(result.terminal, result.intents);
 
-| Action              | Factory                                                   | Listener   |
-| ------------------- | --------------------------------------------------------- | ---------- |
-| `DELIVER_DEDICATED` | `routingRuleAction.deliverDedicated(poolId)`              | submission |
-| `DELIVER`           | `routingRuleAction.deliver()`                             | submission |
-| `SMARTHOST_RELAY`   | `routingRuleAction.smartHostRelay(relayRef)`              | submission |
-| `DROP`              | `routingRuleAction.drop()` / `.drop(auditReason)`         | both       |
-| `REJECT`            | `routingRuleAction.reject(smtp, enhanced, message)`       | both       |
-| `MODIFY_HEADER`     | `routingRuleAction.modifyHeader(operations)`              | submission |
-| `ADD_RECIPIENT`     | `routingRuleAction.addRecipient(recipients)`              | submission |
-| `NOTIFY_WEBHOOK`    | `routingRuleAction.notifyWebhook(webhookRef)`             | both       |
-| `RELAY`             | `routingRuleAction.relay(relayRef)`                       | mta        |
-| `AUTO_REPLY`        | `routingRuleAction.autoReply(templateRef)`                | mta        |
-| `DELIVER_WEBHOOK`   | `routingRuleAction.deliverWebhook(webhookRef)`            | mta        |
-| `SMTP_FORWARD`      | `routingRuleAction.smtpForward(destinationRef)`           | mta        |
-| `S3_STORE`          | `routingRuleAction.s3Store(storageRef, prefix, template)` | mta        |
+  await script.publish(draft.revision);
+}
 
-`modifyHeaderOperation.append(header, value)`, `.set(header, value)`, and
-`.remove(header)` build header operations.
+for await (const revision of await script.listRevisions()) {
+  console.log(revision.revision, revision.status, revision.publishable);
+}
+
+await script.rollback(draft.revision);
+const exported = await script.export();
+
+// Unpublish: the listener runs its listener-type default again.
+await script.delete();
+```
+
+`setBodyAccess(true)` opts an MTA listener's script into `mail.body:text()`, a
+capped text/plain read of the spooled message. Submission listeners cannot
+enable it. `delete()` is idempotent and keeps the revision history, so a later
+`rollback()` can restore the script.
+
+Simulation fixtures can include `bodyHtml` and `attachments` for MTA listeners
+with body access, in addition to the envelope, headers, and `bodyText`.
+
+Script intents are the replacement for routing-rule actions. Their kinds are
+exposed as `scriptIntentKind.*`, and the sandbox result uses the
+`ScriptSimulationResult` family of models. Routing scripts use the `rules.read`,
+`rules.write`, and `rules.publish` scopes; the old `rules.delete` scope no
+longer exists.
+
+### Notifications
+
+The client notification stream carries no event-type field. The stream subject
+identifies an `accepted`, `attempt`, or `fault` event, and an attempt's `channel`
+identifies the worker (`smtp` or `s3`). MTA routing-script faults are sampled
+(at most one per revision per replica per minute) and carry `suppressed_faults`.
+Listener notification settings are read and updated with
+`listener.notificationSetting()` and `listener.updateNotifications(...)`.
 
 ---
 
@@ -416,8 +458,6 @@ const listener = await listeners.create({
   displayName: "Outbound",
   listenerType: "submission",
   streamType: "transactional",
-  defaultTerminalActionType: "DELIVER",
-  defaultTerminalActionPayload: terminalActionPayload.deliver(),
 });
 
 await listener.rename("Outbound primary");
@@ -425,23 +465,26 @@ await listener.updateRspamdScanning(true);
 await listener.updateNotifications(true);
 
 for await (const mta of await listeners.listMtaListeners()) {
-  console.log(mta.displayName);
+  console.log(mta.displayName, mta.activeScriptRevisionId);
 }
 ```
 
-### Routing rules - `listener.routingRules()`
+### Routing scripts - `listener.routingScript()`
 
 ```ts
-const rules = listener.routingRules();
+const script = listener.routingScript();
 
-const rule = await rules.create({
-  priority: 1,
-  expressionText: "from == 'billing@example.com'",
-  action: routingRuleAction.smtpForward("billing-dest"),
-});
+const draft = await script.createRevision(
+  "function handle(mail, mx)\n  return mx.deliver:shared()\nend\n",
+);
+await script.simulate(draft.revision, { fixture: { rcptTo: ["ops@example.com"] } });
+await script.publish(draft.revision);
 
-await rule.setActive(false);
-await rule.reorder(10);
+for await (const revision of await script.listRevisions()) {
+  console.log(revision.revision, revision.status, revision.publishable);
+}
+
+await script.setBodyAccess(true); // MTA listeners only
 ```
 
 ### API keys - `listener.apiKeys()`
@@ -499,7 +542,12 @@ await suppressions.create({
 });
 
 for await (const suppression of await suppressions.list({ search: "example.com" })) {
-  console.log(suppression.emailAddress, suppression.reason);
+  console.log(
+    suppression.emailAddress,
+    suppression.canonicalEmailAddress,
+    suppression.reason,
+    suppression.systemManaged,
+  );
 }
 ```
 
@@ -528,6 +576,10 @@ const template = await ws.autoReplyTemplates().create({
 });
 
 await template.setActive(true);
+
+// List/get return only a masked summary; read the stored content explicitly.
+const stored = await template.getContent();
+console.log(stored.subject, stored.textBody, stored.htmlBody, stored.headers);
 ```
 
 ### SMTP forward destinations - `ws.smtpForwardDestinations()`
@@ -594,13 +646,23 @@ const endpoint = await ws.webhookEndpoints().create({
 });
 console.log(endpoint.signingSecret); // returned once
 
-for await (const delivery of await endpoint.deliveries().list()) {
-  console.log(delivery.outcome, delivery.statusCode);
-}
-
 const rotated = await endpoint.rotateSecret();
 console.log(rotated.signingSecret);
+
+// Authenticate mx.http calls to a third-party API instead of signing them.
+const withCredential = await endpoint.setCredential({
+  header: "X-API-Key", // Authorization is the default
+  value: "sk-123", // write-only; never returned
+});
+console.log(withCredential.credentialHeader); // "X-API-Key"
+
+await withCredential.deleteCredential(); // signed again
 ```
+
+Setting or removing a credential requires `webhook_endpoints.write` and
+`credentials.write`. While a credential is set, `mx.http` calls carry only the
+script's headers and that credential; they are not signed and carry no
+`X-MxRaven-` headers.
 
 ### Identity providers - `ws.identityProviders()`
 
@@ -649,6 +711,23 @@ await ws.mtaRateLimits().put({
 await ws.mtaRateLimits().delete();
 ```
 
+### Abuse control - `ws.abuseControl()`
+
+Read-only workspace deliverability state. Operator identities and internal
+evidence are redacted.
+
+```ts
+const reputation = await ws.abuseControl().reputation();
+console.log(reputation.score, reputation.consecutiveNegativeCount);
+
+const pause = await ws.abuseControl().outboundPause();
+console.log(pause.outboundPaused, pause.source);
+
+for await (const finding of await ws.abuseControl().listDeliverabilityFindings()) {
+  console.log(finding.kind, finding.severity, finding.status);
+}
+```
+
 ### Governance - `ws.governance()`
 
 ```ts
@@ -656,9 +735,38 @@ for await (const entry of await ws.governance().listAuditLog({ pageSize: 100 }))
   console.log(entry.action, entry.actorKind, entry.status);
 }
 
+for await (const outcome of await ws.governance().listInboundRoutingOutcomes()) {
+  console.log(outcome.messageRef, outcome.disposition, outcome.scriptRevisionId);
+}
+
+for await (const pool of await ws.governance().listDedicatedIPPools()) {
+  console.log(pool.name, pool.ref);
+}
+
 const hits = await (
   await ws.governance().search({ query: "example.com", types: ["domain", "listener"] })
 ).toArray();
+```
+
+### Connected apps - `ws.connectedApps()`
+
+```ts
+const apps = ws.connectedApps();
+
+for (const installation of await apps.list()) {
+  console.log(installation.displayName, installation.grantedScopes);
+}
+
+// Consent screens preview first, then approve the same request.
+const preview = await apps.deviceAuthorization("ABCD-1234");
+console.log(preview.displayName, preview.requestedScopes);
+
+const installation = await apps.create({
+  appId: preview.appId,
+  grantedScopes: preview.requestedScopes.map((scope) => scope.scope),
+});
+
+await apps.revoke(installation.id);
 ```
 
 ### Mail analytics - `ws.mailAnalytics()`
@@ -727,22 +835,26 @@ groups:
   `DnsRecordType`, `DomainListenerGrant`, `CreateDomainRequest`,
   `ReplaceDomainRequest`.
 - **Listeners:** `Listener`, `ListenerData`, `ListenerType`, `StreamType`,
-  `TerminalActionType`, `TerminalActionPayload`, `CreateListenerRequest`,
-  `UpdateListenerRequest`, `UpdateListenerDefaultTerminalActionRequest`,
+  `CreateListenerRequest`, `UpdateListenerRequest`,
   `UpdateListenerRspamdScanningRequest`.
-- **Routing:** `RoutingRule`, `RoutingRuleAction`, `RoutingRuleActionKind`,
-  `RoutingRulePayload`, `ModifyHeaderOperation`, `ModifyHeaderOp`,
-  `CreateRoutingRuleRequest`, `ReplaceRoutingRuleRequest`,
-  `SetRoutingRuleActiveRequest`, `ReorderRoutingRuleRequest`.
+- **Routing scripts:** `ListenerScript`, `ScriptRevision`,
+  `ScriptRevisionSummary`, `ScriptDependencies`, `ScriptDiagnostic`,
+  `ScriptSimulationResult`, `ScriptIntent`, `ScriptSkippedIntent`,
+  `ScriptFault`, `ScriptHttpCall`, `ScriptTraceEntry`,
+  `ExportedListenerScript`, `CreateScriptRevisionRequest`,
+  `SimulateScriptRevisionRequest`, `SimulationAttachment`, `SimulationFixture`,
+  `SimulationHttpStub`, `scriptRevisionStatus`, `scriptIntentKind`,
+  `scriptFaultReason`, `scriptDiagnosticSeverity`.
 - **API keys and policy:** `APIKey`, `APIKeyData`, `IssuedAPIKey`,
   `SendingDomainPolicy`, `SendingDomainPolicyGrant`,
   `SendingDomainPolicyGrantRequest`, `SendingDomainSubdomainScope`,
   `ReplaceSendingDomainPolicyRequest`.
 - **Suppressions and recipient sets:** `TenantSuppression`, `SuppressionReason`,
-  `RecipientSet`, `RecipientSetMember`, `RecipientSetMemberRequest`,
+  `TenantSuppressionData`, `RecipientSet`, `RecipientSetMember`, `RecipientSetMemberRequest`,
   `RecipientSetMembersBatchRequest`, `RecipientSetBatchResult`,
   `CreateRecipientSetRequest`, `UpdateRecipientSetRequest`.
 - **Auto-reply:** `AutoReplyTemplate`, `AutoReplyTemplateHeader`,
+  `AutoReplyTemplateContent`, `AutoReplyTemplateContentSummary`,
   `AutoReplySenderReadiness`, `AutoReplySenderReadinessStatus`,
   `CreateAutoReplyTemplateRequest`, `UpdateAutoReplyTemplateRequest`,
   `SetAutoReplyTemplateActiveRequest`, `MaskedTemplateField`.
@@ -752,16 +864,24 @@ groups:
   `SmtpForwardDestinationVerificationStatus`, `InboundRoute`,
   `InboundRouteVerificationStatus`, `SmtpRelay`, `StorageIntegration`,
   `SetIntegrationActiveRequest`.
-- **Webhooks:** `WebhookEndpoint`, `WebhookDelivery`, `WebhookDeliveryKind`,
-  `IssuedWebhookEndpoint`, `CreateWebhookEndpointRequest`,
-  `UpdateWebhookEndpointRequest`.
+- **Webhooks:** `WebhookEndpoint`, `IssuedWebhookEndpoint`,
+  `CreateWebhookEndpointRequest`, `UpdateWebhookEndpointRequest`,
+  `SetWebhookEndpointCredentialRequest`.
 - **Identity:** `TenantIdentityProvider`, `IdentityProviderType`,
   `IdentityProviderLifecycleStatus`, `IdentityProvisioning`,
   `IdentityAccessClaim`, `ProviderOptions`, `LdapAttributes`, and the
   `CreateTenant*IdentityProviderRequest` family.
+- **Abuse control:** `TenantReputation`, `TenantOutboundPause`,
+  `TenantOutboundPauseSource`, `TenantAbuseFindingSummary`.
 - **Governance:** `AuditLog`, `AuditActorKind`, `AuditStatus`,
+  `InboundRoutingOutcome`, `InboundRoutingDisposition`,
   `TenantResourceSearchResult`, `TenantSearchResourceType`,
   `TenantDedicatedIPPool`.
+- **Connected applications:** `ConnectedAppsClient`,
+  `ConnectedAppInstallation`, `ConnectedAppInstallationStatus`,
+  `ConnectedAppScope`, `ConnectedAppGrantor`, `ConnectedAppStatus`,
+  `ConnectedAppClientKind`, `ConnectedAppDeviceAuthorization`,
+  `ConnectedAppAuthorizationRequest`, `CreateConnectedAppInstallationRequest`.
 - **Mail analytics:** the `MailAnalytics*` family (metrics, dimensions, buckets,
   breakdowns, series, lifecycle, listener overviews, latency, and task-size
   statistics).

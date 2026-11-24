@@ -10,6 +10,7 @@ import type {
   AuditActorKind,
   AuditLog,
   AuditStatus,
+  InboundRoutingOutcome,
   TenantDedicatedIPPool,
   TenantResourceSearchResult,
   TenantSearchResourceType,
@@ -57,6 +58,16 @@ export interface ListAuditLogOptions extends ListOptions {
   readonly createdFrom?: string;
   /** Exclusive ISO-8601 upper bound on the creation timestamp. */
   readonly createdTo?: string;
+}
+
+/**
+ * Options for {@link GovernanceClient.listInboundRoutingOutcomes}.
+ *
+ * @public
+ */
+export interface ListInboundRoutingOutcomesOptions extends ListOptions {
+  /** Restrict to outcomes from a single listener. */
+  readonly listenerId?: string;
 }
 
 /**
@@ -116,6 +127,28 @@ export class GovernanceClient {
       query,
       options,
       decodeAuditLog,
+    );
+  }
+
+  /**
+   * Lists inbound recipient routing outcomes, newest first.
+   *
+   * The results cover recipients rejected synchronously or suppressed in a
+   * mixed-recipient SMTP transaction.
+   *
+   * @param options - Optional listener filter, pagination, and cancellation signal.
+   * @returns A lazily paginating collection of routing outcomes.
+   * @throws `ApiException` When the control plane returns a non-success status.
+   *
+   * @public
+   */
+  listInboundRoutingOutcomes(
+    options: ListInboundRoutingOutcomesOptions = {},
+  ): Promise<Paged<InboundRoutingOutcome>> {
+    return this.#client.paged<InboundRoutingOutcome>(
+      this.#tenantPath("/inbound-routing-outcomes"),
+      listQuery(options, { listener_id: options.listenerId }),
+      options,
     );
   }
 

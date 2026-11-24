@@ -6,7 +6,12 @@ import { suppressionReason } from "../models/suppressions.js";
 import { TenantSuppression } from "./entity.js";
 
 const BASE = "https://api.test";
-const suppressionJson = '{"tenant_id":"t1","email_address":"bounce@example.com","reason":"bounce"}';
+const suppressionJson =
+  '{"tenant_id":"t1","email_address":"Bounce+tag@example.com",' +
+  '"canonical_email_address":"bounce@example.com","reason":"bounce",' +
+  '"system_managed":false,"source":null,"feedback_count":2,' +
+  '"added_at":"2026-01-01T00:00:00Z","last_feedback_at":null,' +
+  '"updated_at":"2026-01-02T00:00:00Z"}';
 
 function makeClient(fetchImpl: ReturnType<typeof createFetchStub>["fetch"]): AdminClient {
   return new AdminClient({ baseUrl: BASE, token: "t", fetch: fetchImpl });
@@ -22,7 +27,11 @@ describe("SuppressionsClient", () => {
     const all = await paged.toArray();
 
     expect(all[0]).toBeInstanceOf(TenantSuppression);
-    expect(all[0]?.emailAddress).toBe("bounce@example.com");
+    expect(all[0]?.emailAddress).toBe("Bounce+tag@example.com");
+    expect(all[0]?.canonicalEmailAddress).toBe("bounce@example.com");
+    expect(all[0]?.systemManaged).toBe(false);
+    expect(all[0]?.feedbackCount).toBe(2);
+    expect(all[0]?.lastFeedbackAt).toBeNull();
     expect(pathOf(stub.calls[0])).toBe("/v2/tenants/acme/suppressions");
     const params = queryOf(stub.calls[0]);
     expect(params.get("q")).toBe("bounce");

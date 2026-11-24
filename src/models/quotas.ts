@@ -21,6 +21,40 @@ export interface TenantQuotaGuardrailProfile {
 }
 
 /**
+ * The highest per-listener usage for a quota that applies inside one listener.
+ *
+ * This is a high-watermark, not a workspace sum.
+ *
+ * @public
+ */
+export interface ListenerScopedQuotaUsage {
+  /** The highest usage observed. */
+  readonly usage: number;
+  /** The listener with the highest usage. */
+  readonly listenerId: string;
+  /** The listener's display name. */
+  readonly listenerDisplayName: string;
+}
+
+/**
+ * The highest per-set usage for a quota that applies inside one recipient set.
+ *
+ * This is a high-watermark, not a workspace sum.
+ *
+ * @public
+ */
+export interface RecipientSetScopedQuotaUsage {
+  /** The highest usage observed. */
+  readonly usage: number;
+  /** The recipient-set identifier. */
+  readonly recipientSetId: string;
+  /** The recipient-set reference. */
+  readonly setRef: string;
+  /** The recipient-set display name, or `null`. */
+  readonly displayName?: string | null;
+}
+
+/**
  * Current resource usage against quotas.
  *
  * @public
@@ -36,14 +70,14 @@ export interface TenantQuotaUsage {
   readonly inboundRoutes: number;
   /** API keys in use. */
   readonly apiKeys: number;
-  /** Routing rules in use. */
-  readonly routingRules: number;
+  /** Routing-script source bytes in use. */
+  readonly scriptSourceBytes: number;
   /** SMTP relays in use. */
   readonly smtpRelays: number;
   /** Storage integrations in use. */
   readonly storageIntegrations: number;
-  /** Webhook endpoints in use. */
-  readonly webhookEndpoints: number;
+  /** HTTP endpoints in use. */
+  readonly httpEndpoints: number;
   /** Auto-reply templates in use. */
   readonly autoReplyTemplates: number;
   /** Identity providers in use. */
@@ -58,6 +92,12 @@ export interface TenantQuotaUsage {
   readonly dedicatedIpLeases: number;
   /** Dedicated IP addresses in use. */
   readonly dedicatedIpAddresses: number;
+  /** Highest API-key usage across listeners. */
+  readonly apiKeysPerListener?: ListenerScopedQuotaUsage;
+  /** Highest routing-script revision usage across listeners. */
+  readonly scriptRevisionsPerListener?: ListenerScopedQuotaUsage;
+  /** Highest member usage across recipient sets. */
+  readonly recipientSetMembersPerSet?: RecipientSetScopedQuotaUsage;
 }
 
 /**
@@ -88,16 +128,16 @@ export interface EffectiveTenantQuotas {
   readonly maxApiKeys: number | null;
   /** Maximum API keys per listener. */
   readonly maxApiKeysPerListener: number | null;
-  /** Maximum routing rules. */
-  readonly maxRoutingRules: number | null;
-  /** Maximum routing rules per listener. */
-  readonly maxRoutingRulesPerListener: number | null;
+  /** Maximum routing-script source bytes. */
+  readonly maxScriptSourceBytes: number | null;
+  /** Maximum routing-script revisions per listener. */
+  readonly maxScriptRevisionsPerListener: number | null;
   /** Maximum SMTP relays. */
   readonly maxSmtpRelays: number | null;
   /** Maximum storage integrations. */
   readonly maxStorageIntegrations: number | null;
-  /** Maximum webhook endpoints. */
-  readonly maxWebhookEndpoints: number | null;
+  /** Maximum HTTP endpoints. */
+  readonly maxHttpEndpoints: number | null;
   /** Maximum auto-reply templates. */
   readonly maxAutoReplyTemplates: number | null;
   /** Maximum identity providers. */

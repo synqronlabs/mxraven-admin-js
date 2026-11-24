@@ -33,8 +33,26 @@ export interface TenantSuppressionData {
   readonly tenantId: string;
   /** The suppressed recipient address. */
   readonly emailAddress: string;
-  /** Why the address is suppressed. */
-  readonly reason: SuppressionReason;
+  /**
+   * The provider-canonical mailbox identity used for matching.
+   *
+   * Provider-equivalent addresses share one suppression and this value.
+   */
+  readonly canonicalEmailAddress: string;
+  /** Why the address is suppressed, when a reason is recorded. */
+  readonly reason?: SuppressionReason;
+  /** Whether mxRaven feedback system manages the suppression. */
+  readonly systemManaged?: boolean;
+  /** Opaque provenance label such as `one_click_unsubscribe`. */
+  readonly source?: string | null;
+  /** How many feedback signals contributed to the suppression. */
+  readonly feedbackCount?: number;
+  /** When the suppression was added. */
+  readonly addedAt?: string;
+  /** When the last contributing feedback arrived. */
+  readonly lastFeedbackAt?: string | null;
+  /** When the suppression was last updated. */
+  readonly updatedAt?: string;
 }
 
 /**

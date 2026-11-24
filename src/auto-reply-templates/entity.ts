@@ -6,6 +6,7 @@ import type { RequestOptions } from "../client.js";
 import { Entity } from "../entity.js";
 import {
   optionalAtMost,
+  requireAtMost,
   requireHeaderName,
   requireMailbox,
   requireNoLineBreaks,
@@ -13,6 +14,7 @@ import {
 } from "../internal/validate.js";
 import type {
   AutoReplySenderReadiness,
+  AutoReplyTemplateContent,
   AutoReplyTemplateContentSummary,
   AutoReplyTemplateData,
   AutoReplyTemplateHeader,
@@ -34,7 +36,7 @@ function requireHeaders(
   }
   headers.forEach((header, index) => {
     requireHeaderName(header.name, `headers[${index}].name`);
-    optionalAtMost(header.value, MAX_BODY, `headers[${index}].value`);
+    requireAtMost(header.value, MAX_BODY, `headers[${index}].value`);
   });
   return headers;
 }
@@ -102,6 +104,24 @@ export class AutoReplyTemplate extends Entity<AutoReplyTemplateData> {
       data,
       deleted: this.isDeleted,
     });
+  }
+
+  /**
+   * Reads this template's stored content exactly as the listener renders it.
+   *
+   * `content` is only a masked summary; use this for the real subject, bodies,
+   * and headers.
+   *
+   * @param options - Optional cancellation signal.
+   * @returns The stored content.
+   * @throws `NotFoundException` When the template is no longer visible.
+   *
+   * @public
+   */
+  async getContent(options?: RequestOptions): Promise<AutoReplyTemplateContent> {
+    return (
+      await this.client.get(`${this.path}/content`, undefined, options)
+    ).as<AutoReplyTemplateContent>();
   }
 
   /**

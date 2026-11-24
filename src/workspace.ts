@@ -2,8 +2,10 @@
  * A tenant-bound view of the control plane.
  */
 
+import { AbuseControlClient } from "./abuse-control/client.js";
 import { AutoReplyTemplatesClient } from "./auto-reply-templates/client.js";
 import type { AdminClient, RequestOptions } from "./client.js";
+import { ConnectedAppsClient } from "./connected-apps/client.js";
 import { DomainsClient } from "./domains/client.js";
 import { GovernanceClient } from "./governance/client.js";
 import { IdentityProvidersClient } from "./identity-providers/client.js";
@@ -14,6 +16,7 @@ import type { Tenant } from "./models/tenant.js";
 import { MtaRateLimitsClient } from "./mta-rate-limits/client.js";
 import { QuotasClient } from "./quotas/client.js";
 import { RecipientSetsClient } from "./recipient-sets/client.js";
+import { RoutingScriptsClient } from "./routing-scripts/client.js";
 import { SmtpForwardDestinationsClient } from "./smtp-forward-destinations/client.js";
 import { SmtpRelaysClient } from "./smtp-relays/client.js";
 import { StorageIntegrationsClient } from "./storage-integrations/client.js";
@@ -118,6 +121,43 @@ export class Workspace {
    */
   identityProviders(): IdentityProvidersClient {
     return new IdentityProvidersClient({ client: this.#client, tenantSlug: this.slug });
+  }
+
+  /**
+   * Accesses the connected-application family.
+   *
+   * @returns A client for connected-application operations in this workspace.
+   *
+   * @public
+   */
+  connectedApps(): ConnectedAppsClient {
+    return new ConnectedAppsClient({ client: this.#client, tenantSlug: this.slug });
+  }
+
+  /**
+   * Accesses one listener's routing script and revision history.
+   *
+   * @param listenerId - The listener whose script is accessed.
+   * @returns A client for routing-script operations on that listener.
+   *
+   * @public
+   */
+  routingScripts(listenerId: string): RoutingScriptsClient {
+    return new RoutingScriptsClient({
+      client: this.#client,
+      listenerPath: `/tenants/${encodeURIComponent(this.slug)}/listeners/${encodeURIComponent(listenerId)}`,
+    });
+  }
+
+  /**
+   * Accesses the workspace reputation, outbound-pause, and abuse-finding family.
+   *
+   * @returns A client for abuse-control operations in this workspace.
+   *
+   * @public
+   */
+  abuseControl(): AbuseControlClient {
+    return new AbuseControlClient({ client: this.#client, tenantSlug: this.slug });
   }
 
   /**

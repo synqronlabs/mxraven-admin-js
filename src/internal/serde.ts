@@ -35,6 +35,24 @@ function toCamelCase(name: string): string {
   return name.replace(/_([a-z0-9])/g, (_match, character: string) => character.toUpperCase());
 }
 
+/** Marks a value whose keys are data and must not be case-converted. */
+const RAW_WIRE = Symbol("admin.rawWire");
+
+/**
+ * Wraps a free-form value so {@link toWire} leaves its keys untouched.
+ *
+ * Use this for maps whose keys are data, such as header names, fact field names,
+ * recipient-set names, and object-key templates.
+ *
+ * @param value - The free-form value.
+ * @returns A marker that {@link toWire} unwraps unchanged.
+ *
+ * @internal
+ */
+export function rawWire(value: unknown): unknown {
+  return { [RAW_WIRE]: value };
+}
+
 /**
  * Recursively converts every key of a decoded JSON value from `snake_case` to
  * `camelCase`, leaving values untouched.
@@ -78,6 +96,9 @@ export function toWire(value: unknown): unknown {
   }
   if (!isRecord(value)) {
     return value;
+  }
+  if (RAW_WIRE in value) {
+    return (value as Record<symbol, unknown>)[RAW_WIRE];
   }
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {

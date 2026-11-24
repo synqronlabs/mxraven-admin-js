@@ -1,11 +1,12 @@
 /**
  * TypeScript SDK for the mxRaven control-plane admin API.
  *
- * The admin SDK manages a workspace end to end: domains, listeners, routing
- * rules, API keys, suppressions, recipient sets, auto-reply templates,
+ * The admin SDK manages a workspace end to end: domains, listeners, Lua routing
+ * scripts, API keys, suppressions, recipient sets, auto-reply templates,
  * forwarding destinations, inbound routes, relays, storage integrations, webhook
- * endpoints, identity providers, quotas, rate limits, governance, and mail
- * analytics, plus the public auth login context.
+ * endpoints, identity providers, connected applications, quotas, rate limits,
+ * abuse control, governance, and mail analytics, plus the public auth login
+ * context.
  *
  * It is the TypeScript counterpart of the Java SDK at
  * {@link https://github.com/synqronlabs/mxraven-java/tree/main/admin} and
@@ -46,21 +47,13 @@ export type {
   DomainStatus,
   ReplaceDomainRequest,
 } from "./models/domains.js";
-export {
-  listenerType,
-  streamType,
-  terminalActionPayload,
-  terminalActionType,
-} from "./models/listeners.js";
+export { listenerType, streamType } from "./models/listeners.js";
 export type {
   CreateListenerRequest,
   ListenerData,
   ListenerNotificationSetting,
   ListenerType,
   StreamType,
-  TerminalActionPayload,
-  TerminalActionType,
-  UpdateListenerDefaultTerminalActionRequest,
   UpdateListenerNotificationsRequest,
   UpdateListenerRequest,
   UpdateListenerRspamdScanningRequest,
@@ -74,37 +67,68 @@ export type {
   SendingDomainSubdomainScope,
 } from "./models/sending-domain.js";
 export {
-  modifyHeaderOp,
-  modifyHeaderOperation,
-  routingRuleAction,
-  routingRuleActionKind,
-} from "./models/routing-rules.js";
+  scriptDiagnosticSeverity,
+  scriptFaultReason,
+  scriptIntentKind,
+  scriptRevisionStatus,
+} from "./models/routing-scripts.js";
 export type {
-  CreateRoutingRuleRequest,
-  ModifyHeaderOp,
-  ModifyHeaderOperation,
-  ReplaceRoutingRuleRequest,
-  ReorderRoutingRuleRequest,
-  RoutingRuleAction,
-  RoutingRuleActionKind,
-  RoutingRuleData,
-  RoutingRulePayload,
-  SetRoutingRuleActiveRequest,
-} from "./models/routing-rules.js";
+  CreateScriptRevisionRequest,
+  ExportedListenerScript,
+  ListenerScript,
+  RollbackListenerScriptRequest,
+  ScriptDependencies,
+  ScriptDiagnostic,
+  ScriptDiagnosticSeverity,
+  ScriptFault,
+  ScriptFaultReason,
+  ScriptHttpCall,
+  ScriptIntent,
+  ScriptIntentKind,
+  ScriptRevision,
+  ScriptRevisionStatus,
+  ScriptRevisionSummary,
+  ScriptSimulationResult,
+  ScriptSkippedIntent,
+  ScriptTraceEntry,
+  SimulateScriptRevisionRequest,
+  SimulationAttachment,
+  SimulationFixture,
+  SimulationHeader,
+  SimulationHttpStub,
+  UpdateListenerScriptBodyAccessRequest,
+} from "./models/routing-scripts.js";
 export type { APIKeyData, IssuedAPIKey } from "./models/api-keys.js";
-export { auditActorKind, auditStatus, tenantSearchResourceType } from "./models/governance.js";
+export {
+  auditActorKind,
+  auditStatus,
+  inboundRoutingDisposition,
+  tenantSearchResourceType,
+} from "./models/governance.js";
 export type {
   AuditActorKind,
   AuditLog,
   AuditStatus,
+  InboundRoutingDisposition,
+  InboundRoutingOutcome,
   TenantDedicatedIPPool,
   TenantResourceSearchResult,
   TenantSearchResourceType,
 } from "./models/governance.js";
+export { AbuseControlClient } from "./abuse-control/client.js";
+export type { AbuseControlClientOptions } from "./abuse-control/client.js";
+export { tenantOutboundPauseSource } from "./models/abuse-control.js";
+export type {
+  TenantAbuseFindingSummary,
+  TenantOutboundPause,
+  TenantOutboundPauseSource,
+  TenantReputation,
+} from "./models/abuse-control.js";
 export { GovernanceClient } from "./governance/client.js";
 export type {
   GovernanceClientOptions,
   ListAuditLogOptions,
+  ListInboundRoutingOutcomesOptions,
   SearchResourcesOptions,
 } from "./governance/client.js";
 export {
@@ -227,11 +251,8 @@ export type { ListenersClientOptions, ListListenersOptions } from "./listeners/c
 export { Listener } from "./listeners/entity.js";
 export { ListenerMtaRateLimitClient } from "./listeners/mta-rate-limit.js";
 export type { ListenerMtaRateLimitClientOptions } from "./listeners/mta-rate-limit.js";
-export { RoutingRule, RoutingRulesClient } from "./listeners/routing-rules.js";
-export type {
-  ListRoutingRulesOptions,
-  RoutingRulesClientOptions,
-} from "./listeners/routing-rules.js";
+export { RoutingScriptsClient } from "./routing-scripts/client.js";
+export type { RoutingScriptsClientOptions } from "./routing-scripts/client.js";
 export { SendingDomainPoliciesClient } from "./listeners/sending-domain-policy.js";
 export type { SendingDomainPoliciesClientOptions } from "./listeners/sending-domain-policy.js";
 export { tenantProvisioningState, tenantStatus } from "./models/tenant.js";
@@ -267,6 +288,7 @@ export { autoReplySenderReadinessStatus } from "./models/auto-reply.js";
 export type {
   AutoReplySenderReadiness,
   AutoReplySenderReadinessStatus,
+  AutoReplyTemplateContent,
   AutoReplyTemplateContentSummary,
   AutoReplyTemplateData,
   AutoReplyTemplateHeader,
@@ -338,7 +360,27 @@ export type {
   MtaRateLimitSource,
 } from "./models/mta-rate-limits.js";
 export type {
+  ConnectedAppAuthorizationRequest,
+  ConnectedAppClientKind,
+  ConnectedAppDeviceAuthorization,
+  ConnectedAppGrantor,
+  ConnectedAppInstallation,
+  ConnectedAppInstallationStatus,
+  ConnectedAppScope,
+  ConnectedAppStatus,
+  CreateConnectedAppInstallationRequest,
+} from "./models/connected-apps.js";
+export {
+  connectedAppClientKind,
+  connectedAppInstallationStatus,
+  connectedAppStatus,
+} from "./models/connected-apps.js";
+export { ConnectedAppsClient } from "./connected-apps/client.js";
+export type { ConnectedAppsClientOptions } from "./connected-apps/client.js";
+export type {
   EffectiveTenantQuotas,
+  ListenerScopedQuotaUsage,
+  RecipientSetScopedQuotaUsage,
   TenantQuota,
   TenantQuotaGuardrailProfile,
   TenantQuotaUsage,
@@ -353,13 +395,11 @@ export type {
   StorageIntegrationData,
   UpdateStorageIntegrationRequest,
 } from "./models/storage-integrations.js";
-export { webhookDeliveryKind } from "./models/webhooks.js";
 export type {
   CreateWebhookEndpointRequest,
   IssuedWebhookEndpoint,
+  SetWebhookEndpointCredentialRequest,
   UpdateWebhookEndpointRequest,
-  WebhookDelivery,
-  WebhookDeliveryKind,
   WebhookEndpointData,
 } from "./models/webhooks.js";
 export { MtaRateLimitsClient } from "./mta-rate-limits/client.js";
@@ -372,9 +412,6 @@ export { SmtpRelay } from "./smtp-relays/entity.js";
 export { StorageIntegrationsClient } from "./storage-integrations/client.js";
 export type { StorageIntegrationsClientOptions } from "./storage-integrations/client.js";
 export { StorageIntegration } from "./storage-integrations/entity.js";
-export { WebhookDeliveriesClient, WebhookEndpointsClient } from "./webhook-endpoints/client.js";
-export type {
-  WebhookDeliveriesClientOptions,
-  WebhookEndpointsClientOptions,
-} from "./webhook-endpoints/client.js";
+export { WebhookEndpointsClient } from "./webhook-endpoints/client.js";
+export type { WebhookEndpointsClientOptions } from "./webhook-endpoints/client.js";
 export { WebhookEndpoint } from "./webhook-endpoints/entity.js";

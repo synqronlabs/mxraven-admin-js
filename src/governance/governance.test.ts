@@ -10,7 +10,12 @@ const auditJson =
   '"action":"domain.create","resource_type":"domain","resource_id":"d1",' +
   '"status":"success","details":{"old_status":"pending","http_status":200},' +
   '"created_at":"2026-01-01T00:00:00Z"}';
-const poolJson = '[{"id":"p1","name":"Pool","stream_type":"transactional"}]';
+const poolJson = '[{"id":"p1","name":"Pool","stream_type":"transactional","ref":"pool-ref"}]';
+const outcomeJson =
+  '{"id":"o1","listener_id":"l1","message_ref":"m1","recipient_ordinal":0,' +
+  '"recipient_domain":"example.com","script_revision_id":"rev1","used_listener_default":false,' +
+  '"terminal_action":"REJECT","disposition":"smtp_rejected","smtp_status_code":550,' +
+  '"enhanced_status_code":"5.7.1","audit_reason":"policy","created_at":"2026-01-01T00:00:00Z"}';
 const searchJson =
   '[{"resource_type":"domain","resource_id":"d1","label":"example.com","reference":"example.com"}]';
 
@@ -52,6 +57,22 @@ describe("GovernanceClient", () => {
       .then((p) => p.toArray());
     expect(pathOf(stub.calls[0])).toBe("/v2/tenants/acme/dedicated-ip-pools");
     expect(pools[0]?.streamType).toBe("transactional");
+    expect(pools[0]?.ref).toBe("pool-ref");
+  });
+
+  it("lists inbound routing outcomes and filters by listener", async () => {
+    const stub = createFetchStub(() => ({ status: 200, body: `[${outcomeJson}]` }));
+    const outcomes = await makeClient(stub.fetch)
+      .workspace("acme")
+      .governance()
+      .listInboundRoutingOutcomes({ listenerId: "l1", pageSize: 25 })
+      .then((p) => p.toArray());
+
+    expect(pathOf(stub.calls[0])).toBe("/v2/tenants/acme/inbound-routing-outcomes");
+    expect(queryOf(stub.calls[0]).get("listener_id")).toBe("l1");
+    expect(queryOf(stub.calls[0]).get("page_size")).toBe("25");
+    expect(outcomes[0]?.scriptRevisionId).toBe("rev1");
+    expect(outcomes[0]?.disposition).toBe("smtp_rejected");
   });
 
   it("searches resources and joins the types filter", async () => {

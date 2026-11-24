@@ -10,39 +10,16 @@ import type {
   ListenerData,
   ListenerType,
   StreamType,
-  TerminalActionType,
 } from "../models/listeners.js";
-import { terminalActionType } from "../models/listeners.js";
 import type { Paged } from "../pagination.js";
 import { listQuery, normalizeSearch } from "../query.js";
 import { Listener } from "./entity.js";
-
-const VALID_ACTIONS: Record<ListenerType, readonly TerminalActionType[]> = {
-  submission: [
-    terminalActionType.deliverDedicated,
-    terminalActionType.deliver,
-    terminalActionType.smartHostRelay,
-    terminalActionType.drop,
-    terminalActionType.reject,
-  ],
-  mta: [
-    terminalActionType.relay,
-    terminalActionType.autoReply,
-    terminalActionType.drop,
-    terminalActionType.reject,
-  ],
-};
 
 /** Validates a listener-creation request. @internal */
 function validateCreate(request: CreateListenerRequest): void {
   requireAtMost(requireText(request.displayName, "display_name"), 255, "display_name");
   if (request.streamType === "system") {
     throw new Error("admin: stream_type 'system' cannot be used to create a listener");
-  }
-  if (!VALID_ACTIONS[request.listenerType].includes(request.defaultTerminalActionType)) {
-    throw new Error(
-      `admin: default_terminal_action_type ${request.defaultTerminalActionType} is not valid for listener_type ${request.listenerType}`,
-    );
   }
   if (request.rspamdScanningEnabled === true && request.listenerType !== "mta") {
     throw new Error("admin: rspamd_scanning_enabled is only valid for mta listeners");
@@ -69,8 +46,6 @@ export interface ListListenersOptions extends ListOptions {
   readonly listenerType?: ListenerType;
   /** Restrict to a single mail stream. */
   readonly streamType?: StreamType;
-  /** Restrict to a single default terminal action. */
-  readonly defaultTerminalActionType?: TerminalActionType;
   /** Restrict to a required rspamd-scanning state. */
   readonly rspamdScanningEnabled?: boolean;
 }
@@ -109,7 +84,6 @@ export class ListenersClient {
       q: normalizeSearch(options.search),
       listener_type: options.listenerType,
       stream_type: options.streamType,
-      default_terminal_action_type: options.defaultTerminalActionType,
       rspamd_scanning_enabled: options.rspamdScanningEnabled,
     });
     const paged = await this.#client.paged<ListenerData>(base, query, options);

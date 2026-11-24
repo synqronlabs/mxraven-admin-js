@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fromWire, toWire } from "./serde.js";
+import { fromWire, rawWire, toWire } from "./serde.js";
 
 describe("serde", () => {
   it("camelizes nested wire keys", () => {
@@ -30,6 +30,15 @@ describe("serde", () => {
     expect(fromWire([1, "x", null])).toEqual([1, "x", null]);
     expect(toWire("x")).toBe("x");
     expect(toWire(42)).toBe(42);
+  });
+
+  it("leaves free-form map keys untouched", () => {
+    expect(
+      toWire({ httpStubs: [{ headers: rawWire({ "X-Trace": "1", "x-lower": "2" }) }] }),
+    ).toEqual({ http_stubs: [{ headers: { "X-Trace": "1", "x-lower": "2" } }] });
+    expect(toWire({ recipientSets: rawWire({ "VIP Set": ["a@b.com"] }) })).toEqual({
+      recipient_sets: { "VIP Set": ["a@b.com"] },
+    });
   });
 
   it("round-trips a camelCase object", () => {

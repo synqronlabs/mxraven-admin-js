@@ -5,7 +5,7 @@
  * Set MXRAVEN_TOKEN and MXRAVEN_WORKSPACE below, then run:
  *   node examples/manage-listeners.ts
  */
-import { AdminClient, terminalActionPayload } from "@mxraven/admin";
+import { AdminClient } from "@mxraven/admin";
 
 const MXRAVEN_TOKEN = "your-access-token";
 const MXRAVEN_WORKSPACE = "my-workspace";
@@ -17,8 +17,6 @@ const listener = await ws.listeners().create({
   displayName: "Outbound transactional",
   listenerType: "submission",
   streamType: "transactional",
-  defaultTerminalActionType: "DELIVER",
-  defaultTerminalActionPayload: terminalActionPayload.deliver(),
 });
 
 for await (const each of await ws.listeners().list()) {
@@ -29,9 +27,14 @@ await listener.rename("Outbound primary");
 await listener.updateRspamdScanning(true);
 
 // Child clients scoped to this listener:
-for await (const rule of await listener.routingRules().list()) {
-  console.log(`rule ${rule.id} priority=${rule.priority}`);
+const script = listener.routingScript();
+const draft = await script.createRevision(
+  "function handle(mail, mx)\n  return mx.deliver:shared()\nend\n",
+);
+if (draft.publishable) {
+  await script.publish(draft.revision);
 }
+
 for await (const key of await listener.apiKeys().list()) {
   console.log(`key ${key.id} ${key.username}`);
 }

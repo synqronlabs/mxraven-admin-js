@@ -22,9 +22,44 @@ export class TenantSuppression extends Entity<TenantSuppressionData> {
     return this.data.emailAddress;
   }
 
-  /** Why the address is suppressed. @public */
-  get reason(): SuppressionReason {
+  /** The provider-canonical mailbox identity used for matching. @public */
+  get canonicalEmailAddress(): string {
+    return this.data.canonicalEmailAddress;
+  }
+
+  /** Why the address is suppressed, when a reason is recorded. @public */
+  get reason(): SuppressionReason | undefined {
     return this.data.reason;
+  }
+
+  /** Whether mxRaven feedback system manages this suppression. @public */
+  get systemManaged(): boolean {
+    return this.data.systemManaged === true;
+  }
+
+  /** The opaque provenance label, or `null`. @public */
+  get source(): string | null | undefined {
+    return this.data.source;
+  }
+
+  /** How many feedback signals contributed. @public */
+  get feedbackCount(): number | undefined {
+    return this.data.feedbackCount;
+  }
+
+  /** When the suppression was added. @public */
+  get addedAt(): string | undefined {
+    return this.data.addedAt;
+  }
+
+  /** When the last contributing feedback arrived, or `null`. @public */
+  get lastFeedbackAt(): string | null | undefined {
+    return this.data.lastFeedbackAt;
+  }
+
+  /** When the suppression was last updated. @public */
+  get updatedAt(): string | undefined {
+    return this.data.updatedAt;
   }
 
   /**

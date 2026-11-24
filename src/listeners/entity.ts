@@ -9,14 +9,11 @@ import type {
   ListenerNotificationSetting,
   ListenerType,
   StreamType,
-  TerminalActionPayload,
-  TerminalActionType,
-  UpdateListenerDefaultTerminalActionRequest,
   UpdateListenerRequest,
 } from "../models/listeners.js";
+import { RoutingScriptsClient } from "../routing-scripts/client.js";
 import { ApiKeysClient } from "./api-keys.js";
 import { ListenerMtaRateLimitClient } from "./mta-rate-limit.js";
-import { RoutingRulesClient } from "./routing-rules.js";
 import { SendingDomainPoliciesClient } from "./sending-domain-policy.js";
 
 /**
@@ -50,19 +47,19 @@ export class Listener extends Entity<ListenerData> {
     return this.data.streamType;
   }
 
-  /** The default terminal action type. @public */
-  get defaultTerminalActionType(): TerminalActionType {
-    return this.data.defaultTerminalActionType;
-  }
-
-  /** The default terminal action payload. @public */
-  get defaultTerminalActionPayload(): TerminalActionPayload {
-    return this.data.defaultTerminalActionPayload;
-  }
-
   /** Whether rspamd scanning is enabled. @public */
   get rspamdScanningEnabled(): boolean {
     return this.data.rspamdScanningEnabled;
+  }
+
+  /** The published routing script revision, when one exists. @public */
+  get activeScriptRevisionId(): string | undefined {
+    return this.data.activeScriptRevisionId ?? undefined;
+  }
+
+  /** MTA only. Whether the routing script may read the text/plain body. @public */
+  get scriptBodyAccess(): boolean {
+    return this.data.scriptBodyAccess;
   }
 
   /**
@@ -103,25 +100,6 @@ export class Listener extends Entity<ListenerData> {
    */
   async update(request: UpdateListenerRequest, options?: RequestOptions): Promise<Listener> {
     const data = (await this.client.put(this.path, request, options)).as<ListenerData>();
-    return new Listener({ client: this.client, path: this.path, data, deleted: this.isDeleted });
-  }
-
-  /**
-   * Replaces the default terminal action.
-   *
-   * @param request - The new action type and optional payload.
-   * @param options - Optional cancellation signal.
-   * @returns The updated listener.
-   *
-   * @public
-   */
-  async updateDefaultTerminalAction(
-    request: UpdateListenerDefaultTerminalActionRequest,
-    options?: RequestOptions,
-  ): Promise<Listener> {
-    const data = (
-      await this.client.put(`${this.path}/default-terminal-action`, request, options)
-    ).as<ListenerData>();
     return new Listener({ client: this.client, path: this.path, data, deleted: this.isDeleted });
   }
 
@@ -177,14 +155,17 @@ export class Listener extends Entity<ListenerData> {
   }
 
   /**
-   * Accesses this listener's routing rules.
+   * Accesses this listener's routing script and its revisions.
    *
-   * @returns A client for routing-rule operations.
+   * @returns A client for routing-script operations.
    *
    * @public
    */
-  routingRules(): RoutingRulesClient {
-    return new RoutingRulesClient({ client: this.client, path: `${this.path}/rules` });
+  routingScript(): RoutingScriptsClient {
+    return new RoutingScriptsClient({
+      client: this.client,
+      listenerPath: this.path,
+    });
   }
 
   /**

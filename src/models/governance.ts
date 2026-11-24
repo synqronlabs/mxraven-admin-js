@@ -58,8 +58,6 @@ export const tenantSearchResourceType = {
   inboundRoute: "inbound_route",
   /** Listener. */
   listener: "listener",
-  /** Routing rule. */
-  routingRule: "routing_rule",
   /** API key. */
   apiKey: "api_key",
   /** SMTP relay. */
@@ -85,6 +83,60 @@ export const tenantSearchResourceType = {
  */
 export type TenantSearchResourceType =
   (typeof tenantSearchResourceType)[keyof typeof tenantSearchResourceType];
+
+/**
+ * The disposition of an inbound recipient routing outcome.
+ *
+ * @public
+ */
+export const inboundRoutingDisposition = {
+  /** The recipient was rejected synchronously over SMTP. */
+  smtpRejected: "smtp_rejected",
+  /** A mixed-recipient transaction suppressed this recipient. */
+  mixedSuppressed: "mixed_suppressed",
+} as const;
+
+/**
+ * The disposition of an inbound recipient routing outcome.
+ *
+ * @public
+ */
+export type InboundRoutingDisposition =
+  (typeof inboundRoutingDisposition)[keyof typeof inboundRoutingDisposition];
+
+/**
+ * A recipient outcome that was rejected or suppressed during inbound routing.
+ *
+ * @public
+ */
+export interface InboundRoutingOutcome {
+  /** Outcome identifier. */
+  readonly id: string;
+  /** The listener that evaluated the message. */
+  readonly listenerId: string;
+  /** The mxRaven message reference. */
+  readonly messageRef: string;
+  /** The zero-based recipient position in the transaction. */
+  readonly recipientOrdinal: number;
+  /** The recipient's domain. */
+  readonly recipientDomain: string;
+  /** The routing script revision that produced the rejection, when one did. */
+  readonly scriptRevisionId?: string | null;
+  /** Whether the listener-type default applied instead of a script. */
+  readonly usedListenerDefault: boolean;
+  /** The terminal action; currently always `REJECT`. */
+  readonly terminalAction: "REJECT";
+  /** How the recipient was disposed of. */
+  readonly disposition: InboundRoutingDisposition;
+  /** The SMTP status code returned. */
+  readonly smtpStatusCode: number;
+  /** The enhanced status code returned. */
+  readonly enhancedStatusCode: string;
+  /** The audited reason. */
+  readonly auditReason: string;
+  /** When the outcome was recorded. */
+  readonly createdAt: string;
+}
 
 /**
  * Wire representation of an audit-log entry.
@@ -146,4 +198,6 @@ export interface TenantDedicatedIPPool {
   readonly name: string;
   /** The mail stream the pool serves. */
   readonly streamType: StreamType;
+  /** The tenant-scoped lease reference routing scripts use under `deps.pool`. */
+  readonly ref: string;
 }

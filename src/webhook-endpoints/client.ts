@@ -1,5 +1,5 @@
 /**
- * Tenant webhook-endpoint collection and delivery history.
+ * Tenant webhook-endpoint collection and secret rotation.
  */
 
 import type { AdminClient, RequestOptions } from "../client.js";
@@ -8,9 +8,10 @@ import type { ListOptions } from "../list.js";
 import type {
   CreateWebhookEndpointRequest,
   IssuedWebhookEndpoint,
-  WebhookDelivery,
+  SetWebhookEndpointCredentialRequest,
   WebhookEndpointData,
 } from "../models/webhooks.js";
+import { validateCredentialRequest } from "../models/webhooks.js";
 import type { Paged } from "../pagination.js";
 import { listQuery } from "../query.js";
 import { WebhookEndpoint } from "./entity.js";
@@ -114,48 +115,50 @@ export class WebhookEndpointsClient {
     return (await this.#client.post(this.#path(), request, options)).as<IssuedWebhookEndpoint>();
   }
 
+  /**
+   * Stores a credential that `mx.http` calls to an endpoint send as a header.
+   *
+   * The credential is scoped to one endpoint and is write-only.
+   *
+   * @param endpointId - The endpoint identifier.
+   * @param request - The header name and credential value.
+   * @param options - Optional cancellation signal.
+   * @returns The updated endpoint.
+   * @throws `Error` When the header or value fails local validation.
+   *
+   * @public
+   */
+  async setCredential(
+    endpointId: string,
+    request: SetWebhookEndpointCredentialRequest,
+    options?: RequestOptions,
+  ): Promise<WebhookEndpoint> {
+    const base = this.#path();
+    const path = `${base}/${encodeURIComponent(endpointId)}/credential`;
+    const body = validateCredentialRequest(request);
+    const data = (await this.#client.put(path, body, options)).as<WebhookEndpointData>();
+    return new WebhookEndpoint({ client: this.#client, path: `${base}/${data.id}`, data });
+  }
+
+  /**
+   * Removes an endpoint's stored credential so `mx.http` calls are signed again.
+   *
+   * The operation is idempotent.
+   *
+   * @param endpointId - The endpoint identifier.
+   * @param options - Optional cancellation signal.
+   * @returns The updated endpoint without a credential.
+   *
+   * @public
+   */
+  async deleteCredential(endpointId: string, options?: RequestOptions): Promise<WebhookEndpoint> {
+    const base = this.#path();
+    const path = `${base}/${encodeURIComponent(endpointId)}/credential`;
+    const data = (await this.#client.delete(path, options)).as<WebhookEndpointData>();
+    return new WebhookEndpoint({ client: this.#client, path: `${base}/${data.id}`, data });
+  }
+
   #path(): string {
     return `/tenants/${encodeURIComponent(this.#tenantSlug)}/webhook-endpoints`;
-  }
-}
-
-/** Construction options for a {@link WebhookDeliveriesClient}. @public */
-export interface WebhookDeliveriesClientOptions {
-  /** The underlying admin client. */
-  readonly client: AdminClient;
-  /** The client-relative deliveries path. */
-  readonly path: string;
-}
-
-/**
- * Delivery history for a single webhook endpoint.
- *
- * @public
- */
-export class WebhookDeliveriesClient {
-  readonly #client: AdminClient;
-  readonly #path: string;
-
-  /**
-   * @param options - The underlying admin client and deliveries path.
-   *
-   * @public
-   */
-  constructor(options: WebhookDeliveriesClientOptions) {
-    this.#client = options.client;
-    this.#path = options.path;
-  }
-
-  /**
-   * Lists delivery attempts.
-   *
-   * @param options - Optional pagination and cancellation signal.
-   * @returns A lazily paginating collection of deliveries.
-   * @throws `ApiException` When the control plane returns a non-success status.
-   *
-   * @public
-   */
-  async list(options: ListOptions = {}): Promise<Paged<WebhookDelivery>> {
-    return this.#client.paged<WebhookDelivery>(this.#path, listQuery(options), options);
   }
 }

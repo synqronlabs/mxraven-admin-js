@@ -7,10 +7,11 @@ import { Entity } from "../entity.js";
 import { validateWebhookFields } from "../internal/validate.js";
 import type {
   IssuedWebhookEndpoint,
+  SetWebhookEndpointCredentialRequest,
   UpdateWebhookEndpointRequest,
   WebhookEndpointData,
 } from "../models/webhooks.js";
-import { WebhookDeliveriesClient } from "./client.js";
+import { validateCredentialRequest } from "../models/webhooks.js";
 
 /**
  * A webhook endpoint.
@@ -51,6 +52,17 @@ export class WebhookEndpoint extends Entity<WebhookEndpointData> {
   /** Whether a signing secret is stored. @public */
   get hasSigningSecret(): boolean {
     return this.data.hasSigningSecret;
+  }
+
+  /**
+   * The header carrying the endpoint's stored credential, when one is set.
+   *
+   * The credential value itself is write-only and never returned.
+   *
+   * @public
+   */
+  get credentialHeader(): string | undefined {
+    return this.data.credentialHeader;
   }
 
   /** Whether the endpoint is active. @public */
@@ -149,13 +161,54 @@ export class WebhookEndpoint extends Entity<WebhookEndpointData> {
   }
 
   /**
-   * Accesses this endpoint's delivery history.
+   * Stores a credential that `mx.http` calls to this endpoint send as a header.
    *
-   * @returns A client for delivery operations.
+   * The value is write-only and never returned. While a credential is set,
+   * calls carry only the script's headers and the credential; they are not
+   * signed and carry no `X-MxRaven-` headers.
+   *
+   * @param request - The header name and credential value.
+   * @param options - Optional cancellation signal.
+   * @returns The updated endpoint.
+   * @throws `Error` When the header or value fails local validation.
    *
    * @public
    */
-  deliveries(): WebhookDeliveriesClient {
-    return new WebhookDeliveriesClient({ client: this.client, path: `${this.path}/deliveries` });
+  async setCredential(
+    request: SetWebhookEndpointCredentialRequest,
+    options?: RequestOptions,
+  ): Promise<WebhookEndpoint> {
+    const body = validateCredentialRequest(request);
+    const data = (
+      await this.client.put(`${this.path}/credential`, body, options)
+    ).as<WebhookEndpointData>();
+    return new WebhookEndpoint({
+      client: this.client,
+      path: this.path,
+      data,
+      deleted: this.isDeleted,
+    });
+  }
+
+  /**
+   * Removes the stored credential so `mx.http` calls are signed again.
+   *
+   * The operation is idempotent.
+   *
+   * @param options - Optional cancellation signal.
+   * @returns The updated endpoint without a credential.
+   *
+   * @public
+   */
+  async deleteCredential(options?: RequestOptions): Promise<WebhookEndpoint> {
+    const data = (
+      await this.client.delete(`${this.path}/credential`, options)
+    ).as<WebhookEndpointData>();
+    return new WebhookEndpoint({
+      client: this.client,
+      path: this.path,
+      data,
+      deleted: this.isDeleted,
+    });
   }
 }

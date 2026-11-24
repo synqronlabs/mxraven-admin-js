@@ -5,6 +5,9 @@ import { createFetchStub, pathOf } from "../internal/test-support.js";
 import { AutoReplyTemplate } from "./entity.js";
 
 const BASE = "https://api.test";
+const contentJson =
+  '{"subject":"Hi","text_body":"Hello","html_body":null,' +
+  '"headers":[{"name":"X-Test","value":"1"}]}';
 const templateJson =
   '{"id":"art1","tenant_id":"t1","template_ref":"welcome","display_name":"Welcome",' +
   '"from_address":"noreply@example.com","is_active":false,' +
@@ -115,5 +118,26 @@ describe("AutoReplyTemplatesClient", () => {
     await template.setActive(true);
     expect(pathOf(stub.calls[2])).toBe("/v2/tenants/acme/auto-reply-templates/art1/active");
     expect(stub.calls[2]?.body).toBe('{"is_active":true}');
+  });
+
+  it("reads stored content from the client and the entity", async () => {
+    const stub = createFetchStub((request) =>
+      request.url.includes("/content")
+        ? { status: 200, body: contentJson }
+        : { status: 200, body: templateJson },
+    );
+    const client = makeClient(stub.fetch).workspace("acme").autoReplyTemplates();
+
+    const content = await client.getContent("art1");
+    expect(pathOf(stub.calls[0])).toBe("/v2/tenants/acme/auto-reply-templates/art1/content");
+    expect(content.subject).toBe("Hi");
+    expect(content.textBody).toBe("Hello");
+    expect(content.htmlBody).toBeNull();
+    expect(content.headers[0]?.name).toBe("X-Test");
+
+    const template = await client.get("art1");
+    const entityContent = await template.getContent();
+    expect(pathOf(stub.calls[2])).toBe("/v2/tenants/acme/auto-reply-templates/art1/content");
+    expect(entityContent.subject).toBe("Hi");
   });
 });
